@@ -9,6 +9,9 @@ on:
     branches:
       - main
 
+env:
+  FORCE_COLOR: 1
+
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
@@ -17,15 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      # Add steps for restoring NuGet packages and building the project if needed
+
       # Continue with the deployment steps
-      - name: Build And Deploy
-        id: builddeploy
-        uses: Azure/static-web-apps-deploy@v1
-        with:
-          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_POLITE_ROCK_0493D5E0F }}
-          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
-          action: "upload"
-          app_location: "/" # App source code path
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
@@ -38,3 +35,52 @@ jobs:
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN_POLITE_ROCK_0493D5E0F }}
           action: "close"
+
+  linters:
+    name: Linters
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+
+      # Setup node environment
+      - uses: actions/setup-node@v1
+        with:
+          node-version: "12.x"
+
+      # Setup Lighthouse
+      - name: Setup Lighthouse
+        run: npm install -g @lhci/cli@0.7.x
+
+      # Lighthouse Report
+      - name: Lighthouse Report
+        run: lhci autorun --upload.target=temporary-public-storage --collect.staticDistDir=.
+
+      # Setup Webhint
+      - name: Setup Webhint
+        run: |
+          npm install --save-dev hint@6.x
+          [ -f .hintrc ] || wget https://raw.githubusercontent.com/microverseinc/linters-config/master/html-css/.hintrc
+
+      # Webhint Report
+      - name: Webhint Report
+        run: npx hint --telemetry=off .
+
+      # Setup Stylelint
+      - name: Setup Stylelint
+        run: |
+          npm install --save-dev stylelint@13.x stylelint-scss@3.x stylelint-config-standard@21.x stylelint-csstree-validator@1.x
+          [ -f .stylelintrc.json ] || wget https://raw.githubusercontent.com/microverseinc/linters-config/master/html-css/.stylelintrc.json
+
+      # Stylelint Report
+      - name: Stylelint Report
+        run: npx stylelint "**/*.{css,scss}"
+
+      # Setup ESLint
+      - name: Setup ESLint
+        run: |
+          npm install --save-dev eslint@7.x eslint-config-airbnb-base@14.x eslint-plugin-import@2.x babel-eslint@10.x
+          [ -f .eslintrc.json ] || wget https://raw.githubusercontent.com/microverseinc/linters-config/master/html-css-js/.eslintrc.json
+
+      # ESLint Report
+      - name: ESLint Report
+        run: npx eslint .
