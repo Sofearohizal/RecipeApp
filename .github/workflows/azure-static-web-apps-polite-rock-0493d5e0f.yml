@@ -12,13 +12,16 @@ on:
 jobs:
   build_and_deploy_job:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     name: Build and Deploy Job
     steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: true
-          lfs: false
+      - uses: actions/checkout@v2
+
+      # Add a step to build the project using MSBuild
+      - name: Restore and Build Project
+        run: |
+          nuget restore YourSolution.sln
+          msbuild YourSolution.sln /p:Configuration=Release
 
       # Continue with the deployment steps
       - name: Build And Deploy
